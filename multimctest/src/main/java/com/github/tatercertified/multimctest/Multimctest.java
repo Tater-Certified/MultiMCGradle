@@ -11,13 +11,9 @@ public class Multimctest implements ModInitializer {
     @Override
     public void onInitialize() {
         ServerLifecycleEvents.SERVER_STARTING.register(minecraftServer -> {
-            //: >=1.21.7
-            LOGGER.info("This is 1.21.7 or newer");
+            //: >=1.21.6
+            LOGGER.info("This is 1.21.6 or newer");
             //: END
-
-            /*\ 1.21.6
-            LOGGER.info("This is 1.21.6");
-            \END */
 
             /*\ <=1.21.5
             LOGGER.info("This is 1.21.5 or newer");

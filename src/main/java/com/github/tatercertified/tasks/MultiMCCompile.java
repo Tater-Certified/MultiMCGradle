@@ -11,6 +11,7 @@ import java.util.*;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.JarOutputStream;
+import java.util.stream.Stream;
 
 public class MultiMCCompile {
 
@@ -100,7 +101,7 @@ public class MultiMCCompile {
                     }
                 }
                 String configInJar = RemoteGradleRunner.getGradlePropertyValue(ext.getModConfigFileRelativePath(), workingDir);
-                modifyJsonInJar(entry, configInJar, supportedMCVers);
+                modifyJsonInJar(entry, configInJar, supportedMCVers, project);
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -128,7 +129,7 @@ public class MultiMCCompile {
         }
     }
 
-    private static void modifyJsonInJar(Path jarPath, String filePathInJar, String[] supportedMCVers) throws IOException {
+    private static void modifyJsonInJar(Path jarPath, String filePathInJar, String[] supportedMCVers, Project project) throws IOException {
         Path tempJar = Files.createTempFile("modified-", ".jar");
 
         try (JarFile jarFile = new JarFile(jarPath.toFile());
@@ -139,6 +140,7 @@ public class MultiMCCompile {
             // Copy all entries except the one we want to replace
             for (JarEntry entry : jarFile.stream().toList()) {
                 String entryName = entry.getName();
+                project.getLogger().info("Checking if jar file {} == {}", entryName, filePathInJar);
 
                 // Replace the JSON file
                 if (entryName.equals(filePathInJar)) {
@@ -221,20 +223,21 @@ public class MultiMCCompile {
     }
 
     private static boolean modifySourceCode(Path workingDir, String mcVer) {
-        boolean markChanged = false; // If a build is necessary
+        final boolean[] markChanged = {false}; // If a build is necessary
 
-        Semver mcSemver = new Semver(mcVer);
+        Semver mcSemver = new Semver(mcVer, Semver.SemverType.NPM);
         workingDir = workingDir.resolve("src/main/java");
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(workingDir, "*.java")) {
-            for (Path entry: stream) {
-                if (modifyClassFile(entry, mcSemver)) {
-                    markChanged = true;
-                }
-            }
-        } catch (DirectoryIteratorException | IOException e) {
+        try (Stream<Path> stream = Files.walk(workingDir)) {
+            stream.filter(path -> path.toString().endsWith(".java"))
+                    .forEach(entry -> {
+                        if (modifyClassFile(entry, mcSemver)) {
+                            markChanged[0] = true;
+                        }
+                    });
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        return markChanged;
+        return markChanged[0];
     }
 
     private static boolean modifyClassFile(Path classFilePath, Semver mcVer) {
@@ -249,11 +252,13 @@ public class MultiMCCompile {
                 String modifiedLine = line.stripLeading();
                 if (modifiedLine.startsWith("//: ")) {
                     String subString = modifiedLine.substring(4);
-                    if (modified && subString.startsWith("END")) {
-                        modified = false;
-                        line = swapEndingComment(line, false);
-                        file.seek(pointer);
-                        file.writeBytes(line + System.lineSeparator());
+                    if (subString.startsWith("END")) {
+                        if (modified) {
+                            modified = false;
+                            line = swapEndingComment(line, false);
+                            file.seek(pointer);
+                            file.writeBytes(line + System.lineSeparator());
+                        }
                     } else {
                         String semverReq = modifiedLine.substring(4);
                         // Check if it should be disabled
@@ -327,7 +332,7 @@ public class MultiMCCompile {
             }
             try {
                 finalOutputPath = finalOutputPath.toAbsolutePath().resolve(renamedFileName);
-                Files.move(renamedFile.toPath(), finalOutputPath);
+                Files.move(renamedFile.toPath(), finalOutputPath, StandardCopyOption.REPLACE_EXISTING);
                 return finalOutputPath;
             } catch (IOException e) {
                 throw new RuntimeException(e);
