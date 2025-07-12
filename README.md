@@ -55,7 +55,7 @@ In `settings.gradle`, add:
 ```groovy
 pluginManagement {
     repositories {
-        maven { url 'https://jitpack.io' }
+        maven { url = 'https://jitpack.io' }
         mavenCentral()
         gradlePluginPortal()
     }
