@@ -62,6 +62,16 @@ pluginManagement {
 }
 ```
 
+In the submodules' `gradle.properties`, include the mod configuration path (inside a compiled jar):
+```properties
+# For Fabric
+modConfig=fabric.mod.json
+```
+```properties
+# For (Neo)Forge
+modConfig=META-INF/mods.toml
+```
+
 To declare code as being Minecraft version specific, simple comment out the code and tag it:
 
 ```java

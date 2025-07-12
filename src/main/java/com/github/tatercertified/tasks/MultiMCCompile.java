@@ -30,13 +30,14 @@ public class MultiMCCompile {
             int index = 0;
             for (String mcVer : ext.getGradleConfig().getDependencies().keySet()) {
                 index++;
+                project.getLogger().info("--- Compiling {} ---", mcVer);
                 boolean markAsFutureCompatible = (index == ext.getGradleConfig().getDependencies().size()) && ext.isFutureCompatible();
                 modifyGradleProperties(ext, entry.getValue(), mcVer);
-                if (lastJarFile == null || modifySourceCode(entry.getValue(), mcVer)) {
+                if (modifySourceCode(entry.getValue(), mcVer, project) || lastJarFile == null) {
+                    project.getLogger().info("{} is incompatible with the previous version", mcVer);
                     RemoteGradleRunner.runBuildOnSubmodule(entry.getValue().toFile());
 
                     String childName = entry.getValue().getFileName().toString();
-                    project.getLogger().info("Getting child project: {}", childName);
                     Project child = project.getChildProjects().get(childName);
                     String projectName = child.getName();
                     String projectVer = child.getVersion().toString();
@@ -63,6 +64,7 @@ public class MultiMCCompile {
                         lastJarFile = lastOutput;
                     }
                 } else {
+                    project.getLogger().info("{} is compatible with the previous version", mcVer);
                     Path mcVerFile = previousJars.get(lastJarFile);
                     String line;
                     try (BufferedReader reader = new BufferedReader(new FileReader(mcVerFile.toFile()))) {
@@ -82,6 +84,7 @@ public class MultiMCCompile {
                     }
                 }
             }
+            cleanUp(entry.getValue());
         }
 
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(ext.getOutputDir(), "*.jar")) {
@@ -100,8 +103,12 @@ public class MultiMCCompile {
                         break;
                     }
                 }
+                if (workingDir == null) {
+                    continue;
+                }
                 String configInJar = RemoteGradleRunner.getGradlePropertyValue(ext.getModConfigFileRelativePath(), workingDir);
                 modifyJsonInJar(entry, configInJar, supportedMCVers, project);
+                Files.delete(txtFile.toPath());
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -124,6 +131,17 @@ public class MultiMCCompile {
         try {
             // Take a copy of the original file
             Files.copy(gradleProperties, workingDir.resolve("gradle.txt"), StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static void cleanUp(Path workingDir) {
+        try {
+            Path gradleProperties = workingDir.resolve("gradle.properties");
+            Files.deleteIfExists(workingDir.resolve("gradle.properties"));
+            Path gradleTxt = workingDir.resolve("gradle.txt");
+            gradleTxt.toFile().renameTo(gradleProperties.toFile());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -222,7 +240,7 @@ public class MultiMCCompile {
         }
     }
 
-    private static boolean modifySourceCode(Path workingDir, String mcVer) {
+    private static boolean modifySourceCode(Path workingDir, String mcVer, Project project) {
         final boolean[] markChanged = {false}; // If a build is necessary
 
         Semver mcSemver = new Semver(mcVer, Semver.SemverType.NPM);
@@ -230,7 +248,7 @@ public class MultiMCCompile {
         try (Stream<Path> stream = Files.walk(workingDir)) {
             stream.filter(path -> path.toString().endsWith(".java"))
                     .forEach(entry -> {
-                        if (modifyClassFile(entry, mcSemver)) {
+                        if (modifyClassFile(entry, mcSemver, project)) {
                             markChanged[0] = true;
                         }
                     });
@@ -240,7 +258,7 @@ public class MultiMCCompile {
         return markChanged[0];
     }
 
-    private static boolean modifyClassFile(Path classFilePath, Semver mcVer) {
+    private static boolean modifyClassFile(Path classFilePath, Semver mcVer, Project project) {
         boolean markChanged = false; // If a new build is necessary
 
         try (RandomAccessFile file = new RandomAccessFile(classFilePath.toFile(), "rw")) {
@@ -255,7 +273,7 @@ public class MultiMCCompile {
                     if (subString.startsWith("END")) {
                         if (modified) {
                             modified = false;
-                            line = swapEndingComment(line, false);
+                            line = swapEndingComment(line, false, project);
                             file.seek(pointer);
                             file.writeBytes(line + System.lineSeparator());
                         }
@@ -265,7 +283,7 @@ public class MultiMCCompile {
                         if (!mcVer.satisfies(semverReq)) {
                             modified = true;
                             markChanged = true; // Needs a build
-                            line = swapStartingComment(line, false);
+                            line = swapStartingComment(line, false, project);
                             file.seek(pointer);
                             file.writeBytes(line + System.lineSeparator());
                         }
@@ -275,13 +293,13 @@ public class MultiMCCompile {
                     if (mcVer.satisfies(semverReq)) {
                         modified = true;
                         markChanged = true; // Needs a build
-                        line = swapStartingComment(line, true);
+                        line = swapStartingComment(line, true, project);
                         file.seek(pointer);
                         file.writeBytes(line + System.lineSeparator());
                     }
                 } else if (modified && modifiedLine.startsWith("\\END */")) {
                     modified = false;
-                    line = swapEndingComment(line, true);
+                    line = swapEndingComment(line, true, project);
                     file.seek(pointer);
                     file.writeBytes(line + System.lineSeparator());
                 }
@@ -293,18 +311,22 @@ public class MultiMCCompile {
         return markChanged;
     }
 
-    private static String swapStartingComment(String line, boolean enable) {
+    private static String swapStartingComment(String line, boolean enable, Project project) {
         if (enable) {
+            project.getLogger().info("Replacing {} with {}", line, line.replace("/*\\", "//:"));
             return line.replace("/*\\", "//:");
         } else {
+            project.getLogger().info("Replacing {} with {}", line, line.replace("//:", "/*\\"));
             return line.replace("//:", "/*\\");
         }
     }
 
-    private static String swapEndingComment(String line, boolean enable) {
+    private static String swapEndingComment(String line, boolean enable, Project project) {
         if (enable) {
+            project.getLogger().info("Replacing {} with {}", line, line.replace("\\END */", "//: END"));
             return line.replace("\\END */", "//: END");
         } else {
+            project.getLogger().info("Replacing {} with {}", line, line.replace("//: END", "\\END */"));
             return line.replace("//: END", "\\END */");
         }
     }
