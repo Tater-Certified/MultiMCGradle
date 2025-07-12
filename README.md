@@ -23,9 +23,18 @@ import com.github.tatercertified.utils.DependencyBuilder
 import com.github.tatercertified.utils.MCGradleBuilder
 import java.nio.file.Paths
 
-plugins {
-    id ('com.github.Tater-Certified.MultiMCGradle') version '1.0.0-beta.2'
+buildscript() {
+    repositories {
+        maven {
+            url 'https://jitpack.io'
+        }
+    }
+    dependencies {
+        classpath 'com.github.Tater-Certified:MultiMCGradle:1.0.0-beta.3'
+    }
 }
+
+apply plugin: 'com.github.tatercertified.multimc'
 
 multimc {
     // If future Minecraft versions should be supported (default: false)
