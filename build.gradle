@@ -5,7 +5,6 @@ import com.github.tatercertified.utils.DependencyBuilder
 import com.github.tatercertified.utils.MCGradleBuilder
 import java.nio.file.Paths
 
-
 buildscript {
     repositories {
         flatDir {
@@ -13,10 +12,11 @@ buildscript {
         }
     }
     dependencies {
-        classpath name: 'MultiMCGradle-1.0.0-all'
+        classpath name: 'MultiMCGradle-1.0.0-beta.2-all'
     }
 }
-*/
+
+ */
 
 plugins {
     id 'java'
@@ -28,7 +28,7 @@ plugins {
 // apply plugin: MultiMCGradle
 
 group = 'com.github.tatercertified'
-version = '1.0.0-beta.2'
+version = '1.0.0-beta.3'
 
 repositories {
     mavenCentral()
@@ -36,6 +36,15 @@ repositories {
 
 dependencies {
     shadow(implementation('com.vdurmont:semver4j:3.1.0'))
+}
+
+gradlePlugin {
+    plugins {
+        multimc {
+            id = 'com.github.tatercertified.multimc'
+            implementationClass = 'com.github.tatercertified.MultiMCGradle'
+        }
+    }
 }
 
 /*
