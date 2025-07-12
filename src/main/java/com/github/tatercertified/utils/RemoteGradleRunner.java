@@ -1,7 +1,5 @@
 package com.github.tatercertified.utils;
 
-import org.gradle.api.Project;
-import org.gradle.api.tasks.bundling.Jar;
 import org.gradle.tooling.*;
 
 import java.io.File;
@@ -20,12 +18,6 @@ public class RemoteGradleRunner {
                     .forTasks("build")
                     .run();
         }
-    }
-
-    public static String getJarName(Project project) {
-        Jar jarTask = (Jar) project.getTasks().getByName("jar");
-        File jarFile = jarTask.getArchiveFile().get().getAsFile();
-        return jarFile.getName();
     }
 
     public static String getGradlePropertyValue(String key, Path workingDir) {

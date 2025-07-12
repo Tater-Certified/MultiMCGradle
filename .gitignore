@@ -44,3 +44,5 @@ bin/
 ### Qodo ###
 .qodo/
 /.idea
+multimctest/gradle.txt
+/output

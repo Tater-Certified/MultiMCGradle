@@ -12,6 +12,6 @@ public class MultiMCGradle implements Plugin<Project> {
         MultiMCExtension ext = project.getExtensions()
                 .create("multimc", MultiMCExtension.class);
 
-        project.getTasks().register("multi-compile").get().doLast(task -> MultiMCCompile.compile(ext, task.getProject()));
+        project.getTasks().register("multiCompile").get().doLast(task -> MultiMCCompile.compile(ext, task.getProject()));
     }
 }

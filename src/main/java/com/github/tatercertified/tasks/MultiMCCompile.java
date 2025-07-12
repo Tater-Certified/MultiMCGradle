@@ -15,7 +15,13 @@ import java.util.jar.JarOutputStream;
 public class MultiMCCompile {
 
     public static void compile(MultiMCExtension ext, Project project) {
-        createOutputDir(ext);
+        // Ensure the proper working directory is set
+        ext.setOutputDir(project.getRootDir().toPath().resolve(ext.getOutputDir()));
+        for (Map.Entry<String, Path> entry : ext.getLoaderSpecificPaths().entrySet()) {
+            entry.setValue(project.getRootDir().toPath().resolve(entry.getValue()));
+        }
+
+        createOutputDir(ext, project);
         for (Map.Entry<String, Path> entry : ext.getLoaderSpecificPaths().entrySet()) {
             copyGradleProperties(entry.getValue());
             LinkedHashMap<Path, Path> previousJars = new LinkedHashMap<>();
@@ -28,10 +34,12 @@ public class MultiMCCompile {
                 if (lastJarFile == null || modifySourceCode(entry.getValue(), mcVer)) {
                     RemoteGradleRunner.runBuildOnSubmodule(entry.getValue().toFile());
 
-                    String projectName = project.getName();
-                    String projectVer = project.getVersion().toString();
-                    String jarName = RemoteGradleRunner.getJarName(project);
-                    Path lastOutput = migrateOutputFile(entry.getValue(), projectName, projectVer, jarName, mcVer, entry.getKey(), ext.getOutputDir(), project);
+                    String childName = entry.getValue().getFileName().toString();
+                    project.getLogger().info("Getting child project: {}", childName);
+                    Project child = project.getChildProjects().get(childName);
+                    String projectName = child.getName();
+                    String projectVer = child.getVersion().toString();
+                    Path lastOutput = migrateOutputFile(entry.getValue(), projectName, projectVer, mcVer, entry.getKey(), ext.getOutputDir(), project);
                     if (lastOutput != null) {
                         String mcVerFileName = lastOutput.getFileName().toString().replace(".jar", ".txt");
                         Path mcVerFile = lastOutput.getParent().resolve(mcVerFileName);
@@ -99,7 +107,8 @@ public class MultiMCCompile {
         }
     }
 
-    private static void createOutputDir(MultiMCExtension ext) {
+    private static void createOutputDir(MultiMCExtension ext, Project project) {
+        project.getLogger().info("Checking for output folder at {}", ext.getOutputDir().toAbsolutePath());
         if (!Files.isDirectory(ext.getOutputDir())) {
             try {
                 Files.createDirectories(ext.getOutputDir());
@@ -113,7 +122,7 @@ public class MultiMCCompile {
         Path gradleProperties = workingDir.resolve("gradle.properties");
         try {
             // Take a copy of the original file
-            Files.copy(gradleProperties, workingDir.resolve("gradle.txt"));
+            Files.copy(gradleProperties, workingDir.resolve("gradle.txt"), StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -295,8 +304,20 @@ public class MultiMCCompile {
         }
     }
 
-    private static Path migrateOutputFile(Path subprojectPath, String projectName, String projectVer, String jarFileName, String mcVer, String loader, Path finalOutputPath, Project project) {
-        Path outputPath = subprojectPath.resolve("build/libs/" + jarFileName);
+    private static Path migrateOutputFile(Path subprojectPath, String projectName, String projectVer, String mcVer, String loader, Path finalOutputPath, Project project) {
+        Path outputDir = subprojectPath.resolve("build/libs/");
+        Path outputPath = outputDir;
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(outputDir)) {
+            for (Path entry : stream) {
+                if (!entry.getFileName().toString().endsWith("-sources.jar")) {
+                    outputPath = entry;
+                    break;
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
         if (Files.exists(outputPath)) {
             File outputJar = outputPath.toFile();
             String renamedFileName = projectName + "-" + loader + "-" + projectVer + "+mc" + mcVer + ".jar";
@@ -305,7 +326,6 @@ public class MultiMCCompile {
                 project.getLogger().warn("Failed to move {} Minecraft {}", loader, mcVer);
             }
             try {
-                Files.delete(outputPath);
                 finalOutputPath = finalOutputPath.toAbsolutePath().resolve(renamedFileName);
                 Files.move(renamedFile.toPath(), finalOutputPath);
                 return finalOutputPath;
@@ -314,6 +334,7 @@ public class MultiMCCompile {
             }
         } else {
             project.getLogger().warn("Failed to compile project for {} Minecraft {}", loader, mcVer);
+            project.getLogger().warn("Couldn't find file: {}", outputPath);
             return null;
         }
     }

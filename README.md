@@ -18,11 +18,16 @@ various mod loaders.
 Include the plugin in the Gradle project in `build.gradle`:
 
 ```groovy
+import com.github.tatercertified.MCBuildConfig
+import com.github.tatercertified.utils.DependencyBuilder
+import com.github.tatercertified.utils.MCGradleBuilder
+import java.nio.file.Paths
+
 plugins {
     id ('com.github.Tater-Certified.MultiMCGradle') version '1.0.0'
 }
 
-tasks.multimc {
+multimc {
     // If future Minecraft versions should be supported (default: false)
     futureCompatible = true
     // Path where jars should be placed
@@ -32,14 +37,14 @@ tasks.multimc {
     // The loader name and where the subproject directory is located
     loaderSpecificPaths = ["fabric": Paths.get("fabricFolder"), "neoforge": Paths.get("neoforgeFolder")]
     // Specifies how to handle gradle properties between versions
-    gradleConfig = new MCBuildConfig( builder -> {
-        builder.mcVer("1.21.5", depBuilder ->
+    gradleConfig = new MCBuildConfig((MCGradleBuilder builder) -> {
+        builder.mcVer("1.21.5", (DependencyBuilder depBuilder) ->
                 depBuilder.dep("fabric-api", "0.129.0+1.21.7")
         )
-        builder.mcVer("1.21.6", depBuilder ->
+        builder.mcVer("1.21.6", (DependencyBuilder depBuilder) ->
                 depBuilder.copyAll("1.21.5")
         )
-        builder.mcVer("1.21.7", depBuilder -> {
+        builder.mcVer("1.21.7", (DependencyBuilder depBuilder) -> {
             depBuilder.depCopy("fabric-api", "1.21.6")
             depBuilder.depExclude("polymer")
         })
