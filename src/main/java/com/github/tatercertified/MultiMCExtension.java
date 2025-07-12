@@ -22,6 +22,11 @@ public class MultiMCExtension {
      */
     private MCBuildConfig gradleConfig;
 
+    /**
+     * Whether to mark as future compatible (unreleased MC versions)
+     */
+    private boolean futureCompatible = false;
+
     public Path getOutputDir() {
         return this.outputDir;
     }
@@ -52,5 +57,13 @@ public class MultiMCExtension {
 
     public void setGradleConfig(MCBuildConfig gradleConfig) {
         this.gradleConfig = gradleConfig;
+    }
+
+    public boolean isFutureCompatible() {
+        return futureCompatible;
+    }
+
+    public void setFutureCompatible(boolean futureCompatible) {
+        this.futureCompatible = futureCompatible;
     }
 }

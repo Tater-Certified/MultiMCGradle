@@ -7,10 +7,7 @@ import org.gradle.api.Project;
 
 import java.io.*;
 import java.nio.file.*;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.JarOutputStream;
@@ -19,12 +16,14 @@ public class MultiMCCompile {
 
     public static void compile(MultiMCExtension ext, Project project) {
         createOutputDir(ext);
-
         for (Map.Entry<String, Path> entry : ext.getLoaderSpecificPaths().entrySet()) {
             copyGradleProperties(entry.getValue());
             LinkedHashMap<Path, Path> previousJars = new LinkedHashMap<>();
             Path lastJarFile = null;
+            int index = 0;
             for (String mcVer : ext.getGradleConfig().getDependencies().keySet()) {
+                index++;
+                boolean markAsFutureCompatible = (index == ext.getGradleConfig().getDependencies().size()) && ext.isFutureCompatible();
                 modifyGradleProperties(ext, entry.getValue(), mcVer);
                 if (lastJarFile == null || modifySourceCode(entry.getValue(), mcVer)) {
                     RemoteGradleRunner.runBuildOnSubmodule(entry.getValue().toFile());
@@ -43,7 +42,11 @@ public class MultiMCCompile {
                             throw new RuntimeException(e);
                         }
                         try (BufferedWriter writer = new BufferedWriter(new FileWriter(mcVerFile.toFile()))) {
-                            writer.write(mcVer + ",");
+                            if (markAsFutureCompatible) {
+                                writer.write(mcVer + ",*");
+                            } else {
+                                writer.write(mcVer + ",");
+                            }
                         } catch (IOException e) {
                             throw new RuntimeException(e);
                         }
@@ -58,7 +61,11 @@ public class MultiMCCompile {
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
-                    line += mcVer + ",";
+                    if (markAsFutureCompatible) {
+                        line += mcVer + ",*";
+                    } else {
+                        line += mcVer + ",";
+                    }
                     try (BufferedWriter writer = new BufferedWriter(new FileWriter(mcVerFile.toFile()))) {
                         writer.write(line);
                     } catch (IOException e) {
@@ -158,7 +165,11 @@ public class MultiMCCompile {
             if (supportedVersions.length == 1) {
                 return supportedVersions[0];
             } else if (supportedVersions.length > 1) {
-                return ">=" + supportedVersions[0] + " <=" + supportedVersions[supportedVersions.length - 1];
+                if (Objects.equals(supportedVersions[supportedVersions.length - 1], "*")) {
+                    return ">=" + supportedVersions[0];
+                } else {
+                    return ">=" + supportedVersions[0] + " <=" + supportedVersions[supportedVersions.length - 1];
+                }
             } else {
                 return "*";
             }
@@ -166,7 +177,11 @@ public class MultiMCCompile {
             if (supportedVersions.length == 1) {
                 return "[" + supportedVersions[0] + "]";
             } else if (supportedVersions.length > 1) {
-                return "[" + supportedVersions[0] + "," + supportedVersions[supportedVersions.length - 1] + "]";
+                if (Objects.equals(supportedVersions[supportedVersions.length - 1], "*")) {
+                    return "[" + supportedVersions[0] + ",)";
+                } else {
+                    return "[" + supportedVersions[0] + "," + supportedVersions[supportedVersions.length - 1] + "]";
+                }
             } else {
                 return "(,)";
             }
@@ -250,7 +265,7 @@ public class MultiMCCompile {
                         file.seek(pointer);
                         file.writeBytes(line + System.lineSeparator());
                     }
-                } else if (modified && modifiedLine.startsWith("\\*/ ")) {
+                } else if (modified && modifiedLine.startsWith("\\END */")) {
                     modified = false;
                     line = swapEndingComment(line, true);
                     file.seek(pointer);
@@ -274,9 +289,9 @@ public class MultiMCCompile {
 
     private static String swapEndingComment(String line, boolean enable) {
         if (enable) {
-            return line.replace("\\*/    ", "//: END");
+            return line.replace("\\END */", "//: END");
         } else {
-            return line.replace("//: END", "\\*/    ");
+            return line.replace("//: END", "\\END */");
         }
     }
 
