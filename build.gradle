@@ -1,3 +1,4 @@
+/*
 import com.github.tatercertified.MCBuildConfig
 import com.github.tatercertified.MultiMCGradle
 import com.github.tatercertified.utils.DependencyBuilder
@@ -15,6 +16,8 @@ buildscript {
     }
 }
 
+ */
+
 plugins {
     id 'java'
     id 'java-gradle-plugin'
@@ -22,10 +25,10 @@ plugins {
     id("com.gradleup.shadow") version "9.0.0-rc1"
 }
 
-apply plugin: MultiMCGradle
+// apply plugin: MultiMCGradle
 
 group = 'com.github.tatercertified'
-version = '1.0.0-beta.2'
+version = '1.0.0-beta.3'
 
 repositories {
     mavenCentral()
@@ -35,6 +38,16 @@ dependencies {
     shadow(implementation('com.vdurmont:semver4j:3.1.0'))
 }
 
+gradlePlugin {
+    plugins {
+        multimc {
+            id = 'com.github.tatercertified.multimc'
+            implementationClass = 'com.github.tatercertified.MultiMCGradle'
+        }
+    }
+}
+
+/*
 multimc {
     // If future Minecraft versions should be supported (default: false)
     futureCompatible = true
@@ -63,3 +76,5 @@ multimc {
         })
     })
 }
+
+ */
