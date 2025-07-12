@@ -6,14 +6,14 @@ import com.vdurmont.semver4j.Semver;
 import org.gradle.api.Project;
 
 import java.io.*;
-import java.nio.file.DirectoryIteratorException;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.nio.file.*;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
+import java.util.jar.JarOutputStream;
 
 public class MultiMCCompile {
 
@@ -66,8 +66,29 @@ public class MultiMCCompile {
                     }
                 }
             }
-            // TODO Write new supported versions to fabric mod json and/or (Neo)Forge's mod toml
-            // I can do this be getting the first and last mcVer in the list. If they are the same, then I can just skip modifying the mod json/toml.
+        }
+
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(ext.getOutputDir(), "*.jar")) {
+            for (Path entry: stream) {
+                String txtFileName = entry.getFileName().toString().replace(".jar", ".txt");
+                File txtFile = ext.getOutputDir().resolve(txtFileName).toFile();
+                String[] supportedMCVers;
+                try (BufferedReader reader = new BufferedReader(new FileReader(txtFile))) {
+                    String line = reader.readLine();
+                    supportedMCVers = line.split(",");
+                }
+                Path workingDir = null;
+                for (Map.Entry<String, Path> loaderEntry : ext.getLoaderSpecificPaths().entrySet()) {
+                    if (txtFileName.contains(loaderEntry.getKey())) {
+                        workingDir = loaderEntry.getValue();
+                        break;
+                    }
+                }
+                String configInJar = RemoteGradleRunner.getGradlePropertyValue(ext.getModConfigFileRelativePath(), workingDir);
+                modifyJsonInJar(entry, configInJar, supportedMCVers);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -88,6 +109,69 @@ public class MultiMCCompile {
             Files.copy(gradleProperties, workingDir.resolve("gradle.txt"));
         } catch (IOException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private static void modifyJsonInJar(Path jarPath, String filePathInJar, String[] supportedMCVers) throws IOException {
+        Path tempJar = Files.createTempFile("modified-", ".jar");
+
+        try (JarFile jarFile = new JarFile(jarPath.toFile());
+             JarOutputStream jos = new JarOutputStream(Files.newOutputStream(tempJar))) {
+
+            byte[] buffer = new byte[8192];
+
+            // Copy all entries except the one we want to replace
+            for (JarEntry entry : jarFile.stream().toList()) {
+                String entryName = entry.getName();
+
+                // Replace the JSON file
+                if (entryName.equals(filePathInJar)) {
+                    InputStream is = jarFile.getInputStream(entry);
+                    String originalJson = new String(is.readAllBytes());
+                    String modifiedJson = originalJson.replace("%mcVer%", generateVersionExpression(entryName, supportedMCVers));
+
+                    JarEntry newEntry = new JarEntry(entryName);
+                    jos.putNextEntry(newEntry);
+                    jos.write(modifiedJson.getBytes());
+                    jos.closeEntry();
+                    continue;
+                }
+
+                // Copy other entries
+                jos.putNextEntry(new JarEntry(entryName));
+                try (InputStream is = jarFile.getInputStream(entry)) {
+                    int read;
+                    while ((read = is.read(buffer)) != -1) {
+                        jos.write(buffer, 0, read);
+                    }
+                }
+                jos.closeEntry();
+            }
+        }
+
+        // Replace original JAR
+        Files.move(tempJar, jarPath, StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    private static String generateVersionExpression(String filename, String[] supportedVersions) {
+        if (filename.contains(".json")) {
+            if (supportedVersions.length == 1) {
+                return supportedVersions[0];
+            } else if (supportedVersions.length > 1) {
+                return ">=" + supportedVersions[0] + " <=" + supportedVersions[supportedVersions.length - 1];
+            } else {
+                return "*";
+            }
+        } else if (filename.contains(".toml")) {
+            if (supportedVersions.length == 1) {
+                return "[" + supportedVersions[0] + "]";
+            } else if (supportedVersions.length > 1) {
+                return "[" + supportedVersions[0] + "," + supportedVersions[supportedVersions.length - 1] + "]";
+            } else {
+                return "(,)";
+            }
+        } else {
+            return "";
         }
     }
 
