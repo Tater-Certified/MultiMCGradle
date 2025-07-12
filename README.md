@@ -24,7 +24,7 @@ import com.github.tatercertified.utils.MCGradleBuilder
 import java.nio.file.Paths
 
 plugins {
-    id ('com.github.Tater-Certified.MultiMCGradle') version '1.0.0'
+    id ('com.github.Tater-Certified.MultiMCGradle') version '1.0.0-beta.2'
 }
 
 multimc {
