@@ -2,15 +2,19 @@ package com.github.tatercertified.utils;
 
 import org.jetbrains.annotations.ApiStatus;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.TreeMap;
+import java.util.function.Consumer;
 
 public class DependencyBuilder {
     private final HashMap<String, String> dependencies = new HashMap<>();
-    private final TreeMap<String, HashMap<String, String>> linkedDeps;
+    private final List<Consumer<TreeMap<String, HashMap<String, String>>>> copyDeps = new ArrayList<>();
+    private final String mcVer;
 
-    public DependencyBuilder(TreeMap<String, HashMap<String, String>> linkedDeps) {
-        this.linkedDeps = linkedDeps;
+    public DependencyBuilder(String mcVer) {
+        this.mcVer = mcVer;
     }
 
     /**
@@ -24,6 +28,11 @@ public class DependencyBuilder {
         return this;
     }
 
+    private void depConsumer(String var, String val, TreeMap<String, HashMap<String, String>> map) {
+        HashMap<String, String> depMap = map.get(this.mcVer);
+        depMap.put(var, val);
+    }
+
     /**
      * Copies a value from a previously declared Minecraft version
      * @param var The variable declared in gradle.properties
@@ -31,8 +40,10 @@ public class DependencyBuilder {
      * @return DependencyBuilder
      */
     public DependencyBuilder depCopy(String var, String mcVer) {
-        String val = this.linkedDeps.get(mcVer).get(var);
-        dep(var, val);
+        this.copyDeps.add(stringHashMapTreeMap -> {
+            String val = stringHashMapTreeMap.get(mcVer).get(var);
+            depConsumer(var, val, stringHashMapTreeMap);
+        });
         return this;
     }
 
@@ -52,7 +63,9 @@ public class DependencyBuilder {
      * @return DependencyBuilder
      */
     public DependencyBuilder depCopyAll(String mcVer) {
-        this.dependencies.putAll(this.linkedDeps.get(mcVer));
+        this.copyDeps.add(stringHashMapTreeMap -> {
+            stringHashMapTreeMap.put(this.mcVer, stringHashMapTreeMap.get(mcVer));
+        });
         return this;
     }
 
@@ -64,5 +77,26 @@ public class DependencyBuilder {
     @ApiStatus.Internal
     public HashMap<String, String> build() {
         return this.dependencies;
+    }
+
+    /**
+     * Do not call this.<p>
+     * Builds all dependencies that depend on other versions
+     * @param otherDeps Other version's dependencies after {@link DependencyBuilder#build()} has been run
+     */
+    @ApiStatus.Internal
+    public void buildCopies(TreeMap<String, HashMap<String, String>> otherDeps) {
+        for (Consumer<TreeMap<String, HashMap<String, String>>> consumer : this.copyDeps) {
+            consumer.accept(otherDeps);
+        }
+    }
+
+    /**
+     * If the dependency builder should be saved in the Minecraft version builder
+     * @return True if it should be saved
+     */
+    @ApiStatus.Internal
+    public boolean shouldSave() {
+        return !this.copyDeps.isEmpty();
     }
 }

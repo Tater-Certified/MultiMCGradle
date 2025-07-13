@@ -31,7 +31,7 @@ buildscript() {
         }
     }
     dependencies {
-        classpath 'com.github.Tater-Certified:MultiMCGradle:1.0.0-beta.3'
+        classpath 'com.github.Tater-Certified:MultiMCGradle:1.0.0-beta.5'
     }
 }
 
@@ -46,7 +46,7 @@ multimc {
     modConfigFileRelativePath = "configPath"
     // The loader name and where the subproject directory is located
     loaderSpecificPaths = ["fabric": Paths.get("fabricFolder"), "neoforge": Paths.get("neoforgeFolder")]
-    // The paths to the common code subprojects
+    // The paths to the common code subprojects (default: None)
     commonDirs = [Paths.get("commonFolder1"), Paths.get("commonFolder2")]
     // Specifies how to handle gradle properties between versions
     gradleConfig = new MCBuildConfig((MCGradleBuilder builder) -> {

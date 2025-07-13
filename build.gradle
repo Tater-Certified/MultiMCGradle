@@ -12,10 +12,9 @@ buildscript {
         }
     }
     dependencies {
-        classpath name: 'MultiMCGradle-1.0.0-beta.2-all'
+        classpath name: 'MultiMCGradle-1.0.0-beta.5-all'
     }
 }
-
  */
 
 plugins {
@@ -25,10 +24,10 @@ plugins {
     id("com.gradleup.shadow") version "9.0.0-rc1"
 }
 
-// apply plugin: MultiMCGradle
+//apply plugin: MultiMCGradle
 
 group = 'com.github.tatercertified'
-version = '1.0.0-beta.4'
+version = '1.0.0-beta.5'
 
 repositories {
     mavenCentral()
@@ -72,9 +71,8 @@ multimc {
         builder.mcVer("1.21.7", (DependencyBuilder depBuilder) -> {
             depBuilder.dep("minecraft_version", "1.21.7")
             depBuilder.dep("yarn_mappings", "1.21.7+build.6")
-            depBuilder.dep("fabric_version", "0.129.0+1.21.7")
+            depBuilder.depCopy("fabric_version", "1.21.6")
         })
     })
 }
-
  */
