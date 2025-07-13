@@ -131,16 +131,17 @@ public class MultiMCCompile {
     }
 
     private static void copyGradleProperties(Path workingDir, MultiMCExtension ext) {
-        Path gradleProperties = workingDir.resolve("gradle.properties");
         try {
             // Project
             {
+                Path gradleProperties = workingDir.resolve("gradle.properties");
                 Files.copy(gradleProperties, workingDir.resolve("gradle.txt"), StandardCopyOption.REPLACE_EXISTING);
             }
 
             // Common
             {
                 for (Path common : ext.getCommonDirs()) {
+                    Path gradleProperties = common.resolve("gradle.properties");
                     Files.copy(gradleProperties, common.resolve("gradle.txt"), StandardCopyOption.REPLACE_EXISTING);
                 }
             }
