@@ -10,14 +10,17 @@ import java.nio.file.Path;
 import java.util.Properties;
 
 public class RemoteGradleRunner {
-    public static void runBuildOnSubmodule(File subprojectDir) {
+    public static boolean runBuildOnSubmodule(File subprojectDir) {
         try (ProjectConnection connection = GradleConnector.newConnector()
                 .forProjectDirectory(subprojectDir)
                 .connect()) {
             connection.newBuild()
                     .forTasks("build")
                     .run();
+        } catch (GradleConnectionException ignored) {
+            return false;
         }
+        return true;
     }
 
     public static String getGradlePropertyValue(String key, Path workingDir) {
