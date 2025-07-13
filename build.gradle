@@ -1,8 +1,10 @@
+/*
 import com.github.tatercertified.MCBuildConfig
 import com.github.tatercertified.MultiMCGradle
 import com.github.tatercertified.utils.DependencyBuilder
 import com.github.tatercertified.utils.MCGradleBuilder
 import java.nio.file.Paths
+
 
 buildscript {
     repositories {
@@ -15,6 +17,8 @@ buildscript {
     }
 }
 
+ */
+
 plugins {
     id 'java'
     id 'java-gradle-plugin'
@@ -22,7 +26,7 @@ plugins {
     id("com.gradleup.shadow") version "9.0.0-rc1"
 }
 
-apply plugin: MultiMCGradle
+//apply plugin: MultiMCGradle
 
 group = 'com.github.tatercertified'
 version = '1.0.0-beta.10'
@@ -44,6 +48,7 @@ gradlePlugin {
     }
 }
 
+/*
 multimc {
     currentMinecraftVer = "1.21.6"
     // If future Minecraft versions should be supported (default: false)
@@ -73,3 +78,5 @@ multimc {
         })
     })
 }
+
+ */
