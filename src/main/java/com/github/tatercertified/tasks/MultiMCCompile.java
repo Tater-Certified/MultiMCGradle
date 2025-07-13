@@ -279,7 +279,7 @@ public class MultiMCCompile {
 
     private static void modifyGradleProperties(MultiMCExtension ext, Path workingDir, String mcVer, Project project) {
         // Debug printout
-        project.getLogger().info("Loading {} Gradle Overrides", ext.getGradleConfig().getDependencies().size());
+        project.getLogger().info("Loading {} Gradle Overrides", ext.getGradleConfig().getDependencies().get(mcVer).size());
         HashMap<String, String> vars = ext.getGradleConfig().getDependencies().get(mcVer);
         for (Map.Entry<String, String> entry : vars.entrySet()) {
             project.getLogger().info("Setting {} to {}", entry.getKey(), entry.getValue());
