@@ -128,6 +128,15 @@ public class MultiMCCompile {
      * @param project Project instance
      */
     public static void switchVersion(MultiMCExtension ext, Project project) {
+        // Fix paths
+        for (Map.Entry<String, Path> entry : ext.getLoaderSpecificPaths().entrySet()) {
+            entry.setValue(project.getRootDir().toPath().resolve(entry.getValue()));
+        }
+        for (int i = 0; i < ext.getCommonDirs().length; i++) {
+            Path common = ext.getCommonDirs()[i];
+            ext.getCommonDirs()[i] = project.getRootDir().toPath().resolve(common);
+        }
+
         String mcVer = ext.getCurrentMinecraftVer();
         if (mcVer == null) {
             project.getLogger().error("currentMinecraftVer is not specified in build.gradle");
