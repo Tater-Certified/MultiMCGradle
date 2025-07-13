@@ -1,6 +1,7 @@
 # MultiMC Gradle
 ### A multiversion compilation and programming solution for Minecraft modding projects
 -- -
+[![](https://jitpack.io/v/Tater-Certified/MultiMCGradle.svg)](https://jitpack.io/#Tater-Certified/MultiMCGradle)
 ## About
 MultiMC Gradle provides a simple way to create a single mod compatible with various versions of Minecraft. 
 This Gradle plugin is loader-independent and can even support working on multi-module projects if the mod supports
