@@ -21,10 +21,14 @@ public class MultiMCCompile {
         for (Map.Entry<String, Path> entry : ext.getLoaderSpecificPaths().entrySet()) {
             entry.setValue(project.getRootDir().toPath().resolve(entry.getValue()));
         }
+        for (int i = 0; i < ext.getCommonDirs().length; i++) {
+            Path common = ext.getCommonDirs()[i];
+            ext.getCommonDirs()[i] = project.getRootDir().toPath().resolve(common);
+        }
 
         createOutputDir(ext, project);
         for (Map.Entry<String, Path> entry : ext.getLoaderSpecificPaths().entrySet()) {
-            copyGradleProperties(entry.getValue());
+            copyGradleProperties(entry.getValue(), ext);
             LinkedHashMap<Path, Path> previousJars = new LinkedHashMap<>();
             Path lastJarFile = null;
             int index = 0;
@@ -33,7 +37,7 @@ public class MultiMCCompile {
                 project.getLogger().info("--- Compiling {} ---", mcVer);
                 boolean markAsFutureCompatible = (index == ext.getGradleConfig().getDependencies().size()) && ext.isFutureCompatible();
                 modifyGradleProperties(ext, entry.getValue(), mcVer);
-                if (modifySourceCode(entry.getValue(), mcVer, project) || lastJarFile == null) {
+                if (modifySourceCode(entry.getValue(), mcVer, project, ext) || lastJarFile == null) {
                     project.getLogger().info("{} is incompatible with the previous version", mcVer);
                     RemoteGradleRunner.runBuildOnSubmodule(entry.getValue().toFile());
 
@@ -84,7 +88,7 @@ public class MultiMCCompile {
                     }
                 }
             }
-            cleanUp(entry.getValue());
+            cleanUp(entry.getValue(), ext);
         }
 
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(ext.getOutputDir(), "*.jar")) {
@@ -126,22 +130,44 @@ public class MultiMCCompile {
         }
     }
 
-    private static void copyGradleProperties(Path workingDir) {
+    private static void copyGradleProperties(Path workingDir, MultiMCExtension ext) {
         Path gradleProperties = workingDir.resolve("gradle.properties");
         try {
-            // Take a copy of the original file
-            Files.copy(gradleProperties, workingDir.resolve("gradle.txt"), StandardCopyOption.REPLACE_EXISTING);
+            // Project
+            {
+                Files.copy(gradleProperties, workingDir.resolve("gradle.txt"), StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            // Common
+            {
+                for (Path common : ext.getCommonDirs()) {
+                    Files.copy(gradleProperties, common.resolve("gradle.txt"), StandardCopyOption.REPLACE_EXISTING);
+                }
+            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private static void cleanUp(Path workingDir) {
+    private static void cleanUp(Path workingDir, MultiMCExtension ext) {
         try {
-            Path gradleProperties = workingDir.resolve("gradle.properties");
-            Files.deleteIfExists(workingDir.resolve("gradle.properties"));
-            Path gradleTxt = workingDir.resolve("gradle.txt");
-            gradleTxt.toFile().renameTo(gradleProperties.toFile());
+            // Project
+            {
+                Path gradleProperties = workingDir.resolve("gradle.properties");
+                Files.deleteIfExists(workingDir.resolve("gradle.properties"));
+                Path gradleTxt = workingDir.resolve("gradle.txt");
+                gradleTxt.toFile().renameTo(gradleProperties.toFile());
+            }
+
+            // Common
+            {
+                for (Path common : ext.getCommonDirs()) {
+                    Path gradleProperties = common.resolve("gradle.properties");
+                    Files.deleteIfExists(common.resolve("gradle.properties"));
+                    Path gradleTxt = common.resolve("gradle.txt");
+                    gradleTxt.toFile().renameTo(gradleProperties.toFile());
+                }
+            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -220,41 +246,89 @@ public class MultiMCCompile {
     }
 
     private static void modifyGradleProperties(MultiMCExtension ext, Path workingDir, String mcVer) {
-        Path gradleProperties = workingDir.resolve("gradle.properties");
-        Properties properties = new Properties();
-        try (InputStream input = Files.newInputStream(gradleProperties)) {
-            properties.load(input);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        HashMap<String, String> vars = ext.getGradleConfig().getDependencies().get(mcVer);
-        for (Map.Entry<String, String> entry : vars.entrySet()) {
-            if (properties.contains(entry.getKey())) {
-                properties.setProperty(entry.getKey(), entry.getValue());
+        // Project code
+        {
+            Path gradleProperties = workingDir.resolve("gradle.properties");
+            Properties properties = new Properties();
+            try (InputStream input = Files.newInputStream(gradleProperties)) {
+                properties.load(input);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            HashMap<String, String> vars = ext.getGradleConfig().getDependencies().get(mcVer);
+            for (Map.Entry<String, String> entry : vars.entrySet()) {
+                if (properties.contains(entry.getKey())) {
+                    properties.setProperty(entry.getKey(), entry.getValue());
+                }
+            }
+            try (FileWriter writer = new FileWriter(gradleProperties.toFile())) {
+                properties.store(writer, null);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
         }
-        try (FileWriter writer = new FileWriter(gradleProperties.toFile())) {
-            properties.store(writer, null);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+
+        // Common code
+        {
+            for (Path common : ext.getCommonDirs()) {
+                Path gradleProperties = common.resolve("gradle.properties");
+                Properties properties = new Properties();
+                try (InputStream input = Files.newInputStream(gradleProperties)) {
+                    properties.load(input);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                HashMap<String, String> vars = ext.getGradleConfig().getDependencies().get(mcVer);
+                for (Map.Entry<String, String> entry : vars.entrySet()) {
+                    if (properties.contains(entry.getKey())) {
+                        properties.setProperty(entry.getKey(), entry.getValue());
+                    }
+                }
+                try (FileWriter writer = new FileWriter(gradleProperties.toFile())) {
+                    properties.store(writer, null);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
         }
     }
 
-    private static boolean modifySourceCode(Path workingDir, String mcVer, Project project) {
+    private static boolean modifySourceCode(Path workingDir, String mcVer, Project project, MultiMCExtension ext) {
         final boolean[] markChanged = {false}; // If a build is necessary
 
         Semver mcSemver = new Semver(mcVer, Semver.SemverType.NPM);
-        workingDir = workingDir.resolve("src/main/java");
-        try (Stream<Path> stream = Files.walk(workingDir)) {
-            stream.filter(path -> path.toString().endsWith(".java"))
-                    .forEach(entry -> {
-                        if (modifyClassFile(entry, mcSemver, project)) {
-                            markChanged[0] = true;
-                        }
-                    });
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        // Project code
+        {
+            Path newWorkingDir = workingDir.resolve("src/main/java");
+            try (Stream<Path> stream = Files.walk(newWorkingDir)) {
+                stream.filter(path -> path.toString().endsWith(".java"))
+                        .forEach(entry -> {
+                            if (modifyClassFile(entry, mcSemver, project)) {
+                                markChanged[0] = true;
+                            }
+                        });
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
+
+        // Common code
+        {
+            for (Path commonPath : ext.getCommonDirs()) {
+                Path commonWorkingDir = commonPath.resolve("src/main/java");
+                try (Stream<Path> stream = Files.walk(commonWorkingDir)) {
+                    stream.filter(path -> path.toString().endsWith(".java"))
+                            .forEach(entry -> {
+                                if (modifyClassFile(entry, mcSemver, project)) {
+                                    markChanged[0] = true;
+                                }
+                            });
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+
         return markChanged[0];
     }
 

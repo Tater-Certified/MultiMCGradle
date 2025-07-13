@@ -27,6 +27,11 @@ public class MultiMCExtension {
      */
     private boolean futureCompatible = false;
 
+    /**
+     * Paths to modules that contains commonly shared code
+     */
+    private Path[] commonDirs = new Path[0];
+
     public Path getOutputDir() {
         return this.outputDir;
     }
@@ -65,5 +70,13 @@ public class MultiMCExtension {
 
     public void setFutureCompatible(boolean futureCompatible) {
         this.futureCompatible = futureCompatible;
+    }
+
+    public Path[] getCommonDirs() {
+        return commonDirs;
+    }
+
+    public void setCommonDirs(Path[] commonDir) {
+        this.commonDirs = commonDir;
     }
 }

@@ -8,11 +8,12 @@ various mod loaders.
 
 ## Features
 - Simple Gradle Extension configuration
-- Integrated `multi-compile` gradle task
+- Integrated `multiCompile` gradle task
 - Swap dependency versions for each Minecraft version
 - Automatically select the correct code for the Minecraft version
 - Simple annotations for marking version-specific code
 - Automatic merging of jars for code-identical versions
+- Support for common subprojects
 
 ## Usage
 Include the plugin in the Gradle project in `build.gradle`:
@@ -45,13 +46,15 @@ multimc {
     modConfigFileRelativePath = "configPath"
     // The loader name and where the subproject directory is located
     loaderSpecificPaths = ["fabric": Paths.get("fabricFolder"), "neoforge": Paths.get("neoforgeFolder")]
+    // The paths to the common code subprojects
+    commonDirs = [Paths.get("commonFolder1"), Paths.get("commonFolder2")]
     // Specifies how to handle gradle properties between versions
     gradleConfig = new MCBuildConfig((MCGradleBuilder builder) -> {
         builder.mcVer("1.21.5", (DependencyBuilder depBuilder) ->
                 depBuilder.dep("fabric-api", "0.129.0+1.21.7")
         )
         builder.mcVer("1.21.6", (DependencyBuilder depBuilder) ->
-                depBuilder.copyAll("1.21.5")
+                depBuilder.depCopyAll("1.21.5")
         )
         builder.mcVer("1.21.7", (DependencyBuilder depBuilder) -> {
             depBuilder.depCopy("fabric-api", "1.21.6")
@@ -64,7 +67,7 @@ In `settings.gradle`, add:
 ```groovy
 pluginManagement {
     repositories {
-        maven { url = 'https://jitpack.io' }
+        maven { url 'https://jitpack.io' }
         mavenCentral()
         gradlePluginPortal()
     }
