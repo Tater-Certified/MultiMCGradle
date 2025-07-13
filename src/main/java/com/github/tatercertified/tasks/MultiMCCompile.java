@@ -36,7 +36,7 @@ public class MultiMCCompile {
                 index++;
                 project.getLogger().info("--- Compiling {} ---", mcVer);
                 boolean markAsFutureCompatible = (index == ext.getGradleConfig().getDependencies().size()) && ext.isFutureCompatible();
-                modifyGradleProperties(ext, entry.getValue(), mcVer);
+                modifyGradleProperties(ext, entry.getValue(), mcVer, project);
                 if (modifySourceCode(entry.getValue(), mcVer, project, ext) || lastJarFile == null) {
                     project.getLogger().info("{} is incompatible with the previous version", mcVer);
                     if (!RemoteGradleRunner.runBuildOnSubmodule(entry.getValue().toFile())) {
@@ -144,7 +144,7 @@ public class MultiMCCompile {
         }
         project.getLogger().info("--- Switching to {} ---", mcVer);
         for (Map.Entry<String, Path> entry : ext.getLoaderSpecificPaths().entrySet()) {
-            modifyGradleProperties(ext, entry.getValue(), mcVer);
+            modifyGradleProperties(ext, entry.getValue(), mcVer, project);
             modifySourceCode(entry.getValue(), mcVer, project, ext);
         }
         project.getLogger().info("--- Switched to {} ---", mcVer);
@@ -277,7 +277,14 @@ public class MultiMCCompile {
         }
     }
 
-    private static void modifyGradleProperties(MultiMCExtension ext, Path workingDir, String mcVer) {
+    private static void modifyGradleProperties(MultiMCExtension ext, Path workingDir, String mcVer, Project project) {
+        // Debug printout
+        project.getLogger().info("Loading {} Gradle Overrides", ext.getGradleConfig().getDependencies().size());
+        HashMap<String, String> vars = ext.getGradleConfig().getDependencies().get(mcVer);
+        for (Map.Entry<String, String> entry : vars.entrySet()) {
+            project.getLogger().info("Setting {} to {}", entry.getKey(), entry.getValue());
+        }
+
         // Project code
         {
             Path gradleProperties = workingDir.resolve("gradle.properties");
@@ -287,9 +294,8 @@ public class MultiMCCompile {
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
-            HashMap<String, String> vars = ext.getGradleConfig().getDependencies().get(mcVer);
             for (Map.Entry<String, String> entry : vars.entrySet()) {
-                if (properties.contains(entry.getKey())) {
+                if (properties.containsKey(entry.getKey())) {
                     properties.setProperty(entry.getKey(), entry.getValue());
                 }
             }
@@ -310,9 +316,8 @@ public class MultiMCCompile {
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-                HashMap<String, String> vars = ext.getGradleConfig().getDependencies().get(mcVer);
                 for (Map.Entry<String, String> entry : vars.entrySet()) {
-                    if (properties.contains(entry.getKey())) {
+                    if (properties.containsKey(entry.getKey())) {
                         properties.setProperty(entry.getKey(), entry.getValue());
                     }
                 }
