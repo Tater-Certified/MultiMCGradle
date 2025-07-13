@@ -15,6 +15,7 @@ various mod loaders.
 - Simple annotations for marking version-specific code
 - Automatic merging of jars for code-identical versions
 - Support for common subprojects
+- Swap Minecraft versions during development
 
 ## Usage
 Include the plugin in the Gradle project in `build.gradle`:
@@ -32,13 +33,15 @@ buildscript() {
         }
     }
     dependencies {
-        classpath 'com.github.Tater-Certified:MultiMCGradle:1.0.0-beta.6'
+        classpath 'com.github.Tater-Certified:MultiMCGradle:1.0.0-beta.7'
     }
 }
 
 apply plugin: 'com.github.tatercertified.multimc'
 
 multimc {
+    // The actively developed version
+    currentMinecraftVer = "1.21.7"
     // If future Minecraft versions should be supported (default: false)
     futureCompatible = true
     // Path where jars should be placed
@@ -106,3 +109,9 @@ public Executor getExecutor(AtomicInteger threads) {
 }
 \END */
 ```
+<p>
+
+To compile for all versions, run `gradlew multiCompile`<p>
+To switch the current development version, set the `currentMinecraftVer` variable and run `gradlew switchMCVersion`
+**Note:** The `%mcVer%` field in mod config files (such as fabric.mod.json) will **not** be changed. Those must be changed
+manually before running the Minecraft server/client in the development environment.

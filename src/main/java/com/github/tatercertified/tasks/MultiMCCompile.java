@@ -122,6 +122,25 @@ public class MultiMCCompile {
         }
     }
 
+    /**
+     * Switches the current Minecraft version to the one specified in the "multimc" block
+     * @param ext MultiMCExtension instance
+     * @param project Project instance
+     */
+    public static void switchVersion(MultiMCExtension ext, Project project) {
+        String mcVer = ext.getCurrentMinecraftVer();
+        if (mcVer == null) {
+            project.getLogger().error("currentMinecraftVer is not specified in build.gradle");
+            return;
+        }
+        project.getLogger().info("--- Switching to {} ---", mcVer);
+        for (Map.Entry<String, Path> entry : ext.getLoaderSpecificPaths().entrySet()) {
+            modifyGradleProperties(ext, entry.getValue(), mcVer);
+            modifySourceCode(entry.getValue(), mcVer, project, ext);
+        }
+        project.getLogger().info("--- Switched to {} ---", mcVer);
+    }
+
     private static void createOutputDir(MultiMCExtension ext, Project project) {
         project.getLogger().info("Checking for output folder at {}", ext.getOutputDir().toAbsolutePath());
         if (!Files.isDirectory(ext.getOutputDir())) {

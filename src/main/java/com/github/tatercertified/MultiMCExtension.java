@@ -32,6 +32,11 @@ public class MultiMCExtension {
      */
     private Path[] commonDirs = new Path[0];
 
+    /**
+     * The version that is actively being developed for
+     */
+    private String currentMinecraftVer;
+
     public Path getOutputDir() {
         return this.outputDir;
     }
@@ -79,4 +84,13 @@ public class MultiMCExtension {
     public void setCommonDirs(Path[] commonDir) {
         this.commonDirs = commonDir;
     }
+
+    public String getCurrentMinecraftVer() {
+        return currentMinecraftVer;
+    }
+
+    public void setCurrentMinecraftVer(String currentMinecraftVer) {
+        this.currentMinecraftVer = currentMinecraftVer;
+    }
+
 }
