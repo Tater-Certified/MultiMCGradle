@@ -13,10 +13,9 @@ buildscript {
         }
     }
     dependencies {
-        classpath name: 'MultiMCGradle-1.0.0-beta.12-all'
+        classpath name: 'MultiMCGradle-1.0.0-beta.13-all'
     }
 }
-
  */
 
 plugins {
@@ -29,7 +28,7 @@ plugins {
 //apply plugin: MultiMCGradle
 
 group = 'com.github.tatercertified'
-version = '1.0.0-beta.12'
+version = '1.0.0-beta.13'
 
 repositories {
     mavenCentral()
@@ -78,5 +77,4 @@ multimc {
         })
     })
 }
-
  */

@@ -37,6 +37,12 @@ public class MultiMCExtension {
      */
     private String currentMinecraftVer;
 
+    /**
+     * Overrides the default {name}-{version}.jar output jar template.<p>
+     * Use {name} for the project's name and {version} for the project's version
+     */
+    private String outputFileOverride;
+
     public Path getOutputDir() {
         return this.outputDir;
     }
@@ -93,4 +99,11 @@ public class MultiMCExtension {
         this.currentMinecraftVer = currentMinecraftVer;
     }
 
+    public String getOutputFileOverride() {
+        return outputFileOverride;
+    }
+
+    public void setOutputFileOverride(String outputFileOverride) {
+        this.outputFileOverride = outputFileOverride;
+    }
 }

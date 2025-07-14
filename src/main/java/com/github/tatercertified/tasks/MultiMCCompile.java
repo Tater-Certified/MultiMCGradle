@@ -48,7 +48,7 @@ public class MultiMCCompile {
                     Project child = project.getChildProjects().get(childName);
                     String projectName = project.getName();
                     String projectVer = child.getVersion().toString();
-                    Path lastOutput = migrateOutputFile(entry.getValue(), projectName, projectVer, mcVer, entry.getKey(), ext.getOutputDir(), project);
+                    Path lastOutput = migrateOutputFile(entry.getValue(), projectName, projectVer, mcVer, entry.getKey(), ext.getOutputDir(), child, ext);
                     if (lastOutput != null) {
                         String mcVerFileName = lastOutput.getFileName().toString().replace(".jar", ".txt");
                         Path mcVerFile = lastOutput.getParent().resolve(mcVerFileName);
@@ -442,19 +442,10 @@ public class MultiMCCompile {
         }
     }
 
-    private static Path migrateOutputFile(Path subprojectPath, String projectName, String projectVer, String mcVer, String loader, Path finalOutputPath, Project project) {
+    private static Path migrateOutputFile(Path subprojectPath, String projectName, String projectVer, String mcVer, String loader, Path finalOutputPath, Project project, MultiMCExtension ext) {
         Path outputDir = subprojectPath.resolve("build/libs/");
-        Path outputPath = outputDir;
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(outputDir)) {
-            for (Path entry : stream) {
-                if (!entry.getFileName().toString().endsWith("-sources.jar")) {
-                    outputPath = entry;
-                    break;
-                }
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        Path outputPath = getChildProjectJarOutput(outputDir, ext, project);
+        project.getLogger().info("Detected Built Jar at {}", outputPath);
 
         if (Files.exists(outputPath)) {
             File outputJar = outputPath.toFile();
@@ -474,6 +465,26 @@ public class MultiMCCompile {
             project.getLogger().warn("Failed to compile project for {} Minecraft {}", loader, mcVer);
             project.getLogger().warn("Couldn't find file: {}", outputPath);
             return null;
+        }
+    }
+
+    private static Path getChildProjectJarOutput(Path outputDir, MultiMCExtension ext, Project child) {
+        String outputFileName;
+        if (ext.getOutputFileOverride() == null) {
+            outputFileName = child.getName() + "-" + child.getVersion() + ".jar";
+        } else {
+            outputFileName = ext.getOutputFileOverride().replace("{name}", child.getName()).replace("{version}", child.getVersion().toString());
+        }
+        child.getLogger().info("Searching for {}", outputFileName);
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(outputDir)) {
+            for (Path entry : stream) {
+                if (entry.getFileName().toString().equals(outputFileName)) {
+                    return entry;
+                }
+            }
+            return stream.iterator().next();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 }

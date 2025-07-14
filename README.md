@@ -33,7 +33,7 @@ buildscript() {
         }
     }
     dependencies {
-        classpath 'com.github.Tater-Certified:MultiMCGradle:1.0.0-beta.12'
+        classpath 'com.github.Tater-Certified:MultiMCGradle:1.0.0-beta.13'
     }
 }
 
