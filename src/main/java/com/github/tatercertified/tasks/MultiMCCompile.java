@@ -482,9 +482,24 @@ public class MultiMCCompile {
                     return entry;
                 }
             }
-            return stream.iterator().next();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+
+        // Second try, just grab the largest file. It's probably right
+        Path largestFile = null;
+        long sizeBytes = 0;
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(outputDir)) {
+            for (Path entry : stream) {
+                long bytes = Files.size(entry);
+                if (bytes > sizeBytes) {
+                    sizeBytes = bytes;
+                    largestFile = entry;
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return largestFile;
     }
 }
