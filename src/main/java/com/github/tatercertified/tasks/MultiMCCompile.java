@@ -46,7 +46,7 @@ public class MultiMCCompile {
 
                     String childName = entry.getValue().getFileName().toString();
                     Project child = project.getChildProjects().get(childName);
-                    String projectName = child.getName();
+                    String projectName = project.getName();
                     String projectVer = child.getVersion().toString();
                     Path lastOutput = migrateOutputFile(entry.getValue(), projectName, projectVer, mcVer, entry.getKey(), ext.getOutputDir(), project);
                     if (lastOutput != null) {
