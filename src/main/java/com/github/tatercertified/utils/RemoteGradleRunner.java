@@ -1,5 +1,6 @@
 package com.github.tatercertified.utils;
 
+import org.gradle.api.Project;
 import org.gradle.tooling.*;
 
 import java.io.File;
@@ -10,12 +11,14 @@ import java.nio.file.Path;
 import java.util.Properties;
 
 public class RemoteGradleRunner {
-    public static boolean runBuildOnSubmodule(File subprojectDir) {
+    public static boolean runBuildOnSubmodule(File subprojectDir, Project project) {
         try (ProjectConnection connection = GradleConnector.newConnector()
                 .forProjectDirectory(subprojectDir)
                 .connect()) {
             connection.newBuild()
                     .forTasks("build")
+                    .setStandardOutput(new GradleOutputStream(project, false))
+                    .setStandardError(new GradleOutputStream(project, true))
                     .run();
         } catch (GradleConnectionException ignored) {
             return false;

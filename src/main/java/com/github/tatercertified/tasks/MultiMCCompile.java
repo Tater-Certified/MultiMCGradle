@@ -39,7 +39,7 @@ public class MultiMCCompile {
                 modifyGradleProperties(ext, entry.getValue(), mcVer, project);
                 if (modifySourceCode(entry.getValue(), mcVer, project, ext) || lastJarFile == null) {
                     project.getLogger().info("{} is incompatible with the previous version", mcVer);
-                    if (!RemoteGradleRunner.runBuildOnSubmodule(entry.getValue().toFile())) {
+                    if (!RemoteGradleRunner.runBuildOnSubmodule(entry.getValue().toFile(), project)) {
                         project.getLogger().warn("{} failed to compile; Ignoring...", mcVer);
                         continue;
                     }
