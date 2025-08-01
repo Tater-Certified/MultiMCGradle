@@ -3,6 +3,7 @@ package com.github.tatercertified.tasks;
 import com.github.tatercertified.MultiMCExtension;
 import com.github.tatercertified.utils.RemoteGradleRunner;
 import com.vdurmont.semver4j.Semver;
+import org.gradle.api.GradleException;
 import org.gradle.api.Project;
 
 import java.io.*;
@@ -375,20 +376,34 @@ public class MultiMCCompile {
         try (RandomAccessFile file = new RandomAccessFile(classFilePath.toFile(), "rw")) {
             String line;
             long pointer = 0;
+            int lineCount = 0;
             boolean modified = false;
+            boolean nextAnnotationOpening = true;
             while ((line = file.readLine()) != null) {
                 long currentPointer = file.getFilePointer();
                 String modifiedLine = line.stripLeading();
                 if (modifiedLine.startsWith("//: ")) {
                     String subString = modifiedLine.substring(4);
                     if (subString.startsWith("END")) {
+                        // Ending
+                        if (nextAnnotationOpening) {
+                            printMalformedVersionSyntaxError(lineCount, line, classFilePath.getFileName().toString(), project, false);
+                        }
+
                         if (modified) {
                             modified = false;
                             line = swapEndingComment(line, false, project);
                             file.seek(pointer);
                             file.writeBytes(line + System.lineSeparator());
                         }
+
+                        nextAnnotationOpening = true;
                     } else {
+                        // Opening
+                        if (!nextAnnotationOpening) {
+                            printMalformedVersionSyntaxError(lineCount, line, classFilePath.getFileName().toString(), project, true);
+                        }
+
                         String semverReq = modifiedLine.substring(4);
                         // Check if it should be disabled
                         if (!mcVer.satisfies(semverReq)) {
@@ -398,8 +413,15 @@ public class MultiMCCompile {
                             file.seek(pointer);
                             file.writeBytes(line + System.lineSeparator());
                         }
+
+                        nextAnnotationOpening = false;
                     }
                 } else if (modifiedLine.startsWith("/*\\ ")) {
+                    // Opening
+                    if (!nextAnnotationOpening) {
+                        printMalformedVersionSyntaxError(lineCount, line, classFilePath.getFileName().toString(), project, true);
+                    }
+
                     String semverReq = modifiedLine.substring(4);
                     if (mcVer.satisfies(semverReq)) {
                         modified = true;
@@ -408,18 +430,37 @@ public class MultiMCCompile {
                         file.seek(pointer);
                         file.writeBytes(line + System.lineSeparator());
                     }
+
+                    nextAnnotationOpening = false;
                 } else if (modified && modifiedLine.startsWith("\\END */")) {
+                    // Closing
+                    if (nextAnnotationOpening) {
+                        printMalformedVersionSyntaxError(lineCount, line, classFilePath.getFileName().toString(), project, false);
+                    }
+
                     modified = false;
                     line = swapEndingComment(line, true, project);
                     file.seek(pointer);
                     file.writeBytes(line + System.lineSeparator());
+
+                    nextAnnotationOpening = true;
                 }
                 pointer = currentPointer;
+                lineCount++;
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
         return markChanged;
+    }
+
+    private static void printMalformedVersionSyntaxError(int line, String lineStr, String classFileName, Project project, boolean expectedOpening) {
+        if (expectedOpening) {
+            project.getLogger().error("Expected opening syntax in {} at line {}: {}", classFileName, line, lineStr);;
+        } else {
+            project.getLogger().error("Expected closing syntax in {} at line {}: {}", classFileName, line, lineStr);
+        }
+        throw new GradleException("Task failed: Syntax mismatch");
     }
 
     private static String swapStartingComment(String line, boolean enable, Project project) {
